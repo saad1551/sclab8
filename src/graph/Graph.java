@@ -1,98 +1,70 @@
-/* Copyright (c) 2015-2016 MIT 6.005 course staff, all rights reserved.
- * Redistribution of original or derived work requires permission of course staff.
- */
-package graph;
+import java.util.*;
 
-import java.util.Map;
-import java.util.Set;
+public class AdjacencyListGraph<L> implements Graph<L> {
 
-/**
- * A mutable weighted directed graph with labeled vertices.
- * Vertices have distinct labels of an immutable type {@code L} when compared
- * using the {@link Object#equals(Object) equals} method.
- * Edges are directed and have a positive weight of type {@code int}.
- * 
- * <p>PS2 instructions: this is a required ADT interface.
- * You MUST NOT change the specifications or add additional methods.
- * 
- * @param <L> type of vertex labels in this graph, must be immutable
- */
-public interface Graph<L> {
-    
-    /**
-     * Create an empty graph.
-     * 
-     * @param <L> type of vertex labels in the graph, must be immutable
-     * @return a new empty weighted directed graph
-     */
-    public static <L> Graph<L> empty() {
-        throw new RuntimeException("not implemented");
+    private final Map<L, Map<L, Integer>> adjacencyList = new HashMap<>();
+
+    @Override
+    public boolean add(L vertex) {
+        if (adjacencyList.containsKey(vertex)) {
+            return false;
+        }
+        adjacencyList.put(vertex, new HashMap<>());
+        return true;
     }
-    
-    /**
-     * Add a vertex to this graph.
-     * 
-     * @param vertex label for the new vertex
-     * @return true if this graph did not already include a vertex with the
-     *         given label; otherwise false (and this graph is not modified)
-     */
-    public boolean add(L vertex);
-    
-    /**
-     * Add, change, or remove a weighted directed edge in this graph.
-     * If weight is nonzero, add an edge or update the weight of that edge;
-     * vertices with the given labels are added to the graph if they do not
-     * already exist.
-     * If weight is zero, remove the edge if it exists (the graph is not
-     * otherwise modified).
-     * 
-     * @param source label of the source vertex
-     * @param target label of the target vertex
-     * @param weight nonnegative weight of the edge
-     * @return the previous weight of the edge, or zero if there was no such
-     *         edge
-     */
-    public int set(L source, L target, int weight);
-    
-    /**
-     * Remove a vertex from this graph; any edges to or from the vertex are
-     * also removed.
-     * 
-     * @param vertex label of the vertex to remove
-     * @return true if this graph included a vertex with the given label;
-     *         otherwise false (and this graph is not modified)
-     */
-    public boolean remove(L vertex);
-    
-    /**
-     * Get all the vertices in this graph.
-     * 
-     * @return the set of labels of vertices in this graph
-     */
-    public Set<L> vertices();
-    
-    /**
-     * Get the source vertices with directed edges to a target vertex and the
-     * weights of those edges.
-     * 
-     * @param target a label
-     * @return a map where the key set is the set of labels of vertices such
-     *         that this graph includes an edge from that vertex to target, and
-     *         the value for each key is the (nonzero) weight of the edge from
-     *         the key to target
-     */
-    public Map<L, Integer> sources(L target);
-    
-    /**
-     * Get the target vertices with directed edges from a source vertex and the
-     * weights of those edges.
-     * 
-     * @param source a label
-     * @return a map where the key set is the set of labels of vertices such
-     *         that this graph includes an edge from source to that vertex, and
-     *         the value for each key is the (nonzero) weight of the edge from
-     *         source to the key
-     */
-    public Map<L, Integer> targets(L source);
-    
+
+    @Override
+    public int set(L source, L target, int weight) {
+        adjacencyList.putIfAbsent(source, new HashMap<>());
+        adjacencyList.putIfAbsent(target, new HashMap<>());
+
+        Map<L, Integer> edges = adjacencyList.get(source);
+        int previousWeight = edges.getOrDefault(target, 0);
+
+        if (weight == 0) {
+            edges.remove(target);
+        } else {
+            edges.put(target, weight);
+        }
+
+        return previousWeight;
+    }
+
+    @Override
+    public boolean remove(L vertex) {
+        if (!adjacencyList.containsKey(vertex)) {
+            return false;
+        }
+
+        adjacencyList.remove(vertex);
+
+        for (Map<L, Integer> edges : adjacencyList.values()) {
+            edges.remove(vertex);
+        }
+
+        return true;
+    }
+
+    @Override
+    public Set<L> vertices() {
+        return new HashSet<>(adjacencyList.keySet());
+    }
+
+    @Override
+    public Map<L, Integer> sources(L target) {
+        Map<L, Integer> sources = new HashMap<>();
+        for (Map.Entry<L, Map<L, Integer>> entry : adjacencyList.entrySet()) {
+            L source = entry.getKey();
+            Map<L, Integer> edges = entry.getValue();
+            if (edges.containsKey(target)) {
+                sources.put(source, edges.get(target));
+            }
+        }
+        return sources;
+    }
+
+    @Override
+    public Map<L, Integer> targets(L source) {
+        return adjacencyList.getOrDefault(source, Collections.emptyMap());
+    }
 }

@@ -3,12 +3,7 @@
  */
 package graph;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * An implementation of Graph.
@@ -16,121 +11,94 @@ import java.util.Set;
  * <p>PS2 instructions: you MUST use the provided rep.
  */
 public class ConcreteVerticesGraph implements Graph<String> {
-    
+
     private final List<Vertex> vertices = new ArrayList<>();
-    
+
     // Abstraction function:
     //   Represents a graph where each Vertex object in 'vertices' contains a vertex and its outgoing edges.
     // Representation invariant:
-    //   - No two vertices in 'vertices' have the same source. i.e. vertices are not repeated.
+    //   - No two vertices in 'vertices' have the same source, i.e., vertices are unique.
     // Safety from rep exposure:
-    //   - vertices is private and final.
+    //   - 'vertices' is private and final.
     //   - Only copies of vertex labels and edge mappings are exposed.
-    
-    // TODO constructor
+
     /**
      * Create a new empty graph.
      */
     public ConcreteVerticesGraph() {
         checkRep();
     }
-    
-    // TODO checkRep
+
     /**
      * Check the representation invariant.
      * @throws AssertionError if the representation invariant is violated
      */
     private void checkRep() {
-        // Ensure non duplication of vertices
-        Set<String> vertexSet = new HashSet<>();
+        Set<String> vertexLabels = new HashSet<>();
         for (Vertex vertex : vertices) {
-            String vertexString = vertex.getSource();
-            assert !vertexSet.contains(vertexString) : "Duplicate vertex";
-            vertexSet.add(vertexString);
+            String label = vertex.getSource();
+            assert vertexLabels.add(label) : "Duplicate vertex detected: " + label;
         }
     }
-    
-    @Override public boolean add(String vertex) {
-        // Check if vertex already exists
+
+    @Override
+    public boolean add(String vertex) {
         for (Vertex v : vertices) {
             if (v.getSource().equals(vertex)) {
-                return false;
+                return false; // Vertex already exists
             }
         }
-        // Else add it
         vertices.add(new Vertex(vertex));
         checkRep();
         return true;
     }
-    
-    @Override public int set(String source, String target, int weight) {
-        // Check if source and target vertices exist
-        Vertex sourceVertex = null;
-        Vertex targetVertex = null;
-        for (Vertex v : vertices) {
-            if (v.getSource().equals(source)) {
-                sourceVertex = v;
-            }
-            if (v.getSource().equals(target)) {
-                targetVertex = v;
-            }
-        }
-        // If they don't exist, create them
-        if (sourceVertex == null) {
-            sourceVertex = new Vertex(source);
-            vertices.add(sourceVertex);
-        }
-        if (targetVertex == null) {
-            targetVertex = new Vertex(target);
-            vertices.add(targetVertex);
-        }
-        // Check if the outEdge already exists
-        int previousWeight = 0;
-        Map<String, Integer> outEdges = sourceVertex.getOutEdges();
-        if (outEdges.containsKey(target)) {
-            previousWeight = outEdges.get(target);
-        }
+
+    @Override
+    public int set(String source, String target, int weight) {
+        Vertex sourceVertex = findOrCreateVertex(source);
+        findOrCreateVertex(target); // Ensure target vertex exists
+
+        int previousWeight = sourceVertex.getOutEdges().getOrDefault(target, 0);
+
         if (weight == 0) {
             sourceVertex.removeOutEdge(target);
         } else {
             sourceVertex.addOutEdge(target, weight);
         }
+
         checkRep();
         return previousWeight;
     }
-    
-    @Override public boolean remove(String vertex) {
-        // Check if vertex exists
-        Vertex vertexToRemove = null;
-        for (Vertex v : vertices) {
-            if (v.getSource().equals(vertex)) {
-                vertexToRemove = v;
-            }
-        }
+
+    @Override
+    public boolean remove(String vertex) {
+        Vertex vertexToRemove = findVertex(vertex);
         if (vertexToRemove == null) {
             return false;
         }
-        // Remove the vertex
+
         vertices.remove(vertexToRemove);
-        // Remove all edges with the vertex
+
         for (Vertex v : vertices) {
-            v.removeOutEdge(vertex);
+            v.removeOutEdge(vertex); // Remove all edges pointing to or from this vertex
         }
+
         checkRep();
         return true;
     }
-    
-    @Override public Set<String> vertices() {
-        Set<String> vertexSet = new HashSet<>();
+
+    @Override
+    public Set<String> vertices() {
+        Set<String> result = new HashSet<>();
         for (Vertex v : vertices) {
-            vertexSet.add(v.getSource());
+            result.add(v.getSource());
         }
-        return vertexSet;
+        return result;
     }
-    
-    @Override public Map<String, Integer> sources(String target) {
+
+    @Override
+    public Map<String, Integer> sources(String target) {
         Map<String, Integer> sources = new HashMap<>();
-        // Check all vertices for edges with the target
         for (Vertex v : vertices) {
             Map<String, Integer> outEdges = v.getOutEdges();
             if (outEdges.containsKey(target)) {
@@ -139,51 +107,51 @@ public class ConcreteVerticesGraph implements Graph<String> {
         }
         return sources;
     }
-    
-    @Override public Map<String, Integer> targets(String source) {  
-        // Check if source vertex exists
-        Vertex sourceVertex = null;
-        for (Vertex v : vertices) {
-            if (v.getSource().equals(source)) {
-                sourceVertex = v;
-            }
-        }
-        // Return empty hash map if source does not exist
-        if (sourceVertex == null) {
-            return new HashMap<>();
-        }
-        return sourceVertex.getOutEdges();
+
+    @Override
+    public Map<String, Integer> targets(String source) {
+        Vertex sourceVertex = findVertex(source);
+        return (sourceVertex != null) ? sourceVertex.getOutEdges() : new HashMap<>();
     }
-    
-    // TODO toString()
+
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder();
+        StringBuilder result = new StringBuilder();
         for (Vertex v : vertices) {
-            sb.append(v.toString());
+            result.append(v).append("\n");
         }
-        return sb.toString();
+        return result.toString();
+    }
+
+    private Vertex findVertex(String label) {
+        for (Vertex v : vertices) {
+            if (v.getSource().equals(label)) {
+                return v;
+            }
+        }
+        return null;
+    }
+
+    private Vertex findOrCreateVertex(String label) {
+        Vertex vertex = findVertex(label);
+        if (vertex == null) {
+            vertex = new Vertex(label);
+            vertices.add(vertex);
+        }
+        return vertex;
     }
 }
 
 /**
- * TODO specification
- * Mutable.
- * Source should not be null.
- * Out edges should not contain null keys or values.
- * Weights should be > 0.
- * This class is internal to the rep of ConcreteVerticesGraph.
+ * Represents a vertex in the graph.
  * 
- * <p>PS2 instructions: the specification and implementation of this class is
- * up to you.
+ * <p>Mutable. The source is the vertex label, and outEdges maps target vertices to their weights.
  */
 class Vertex {
-    
-    // TODO fields
+
     private final String source;
-    // Create a map containing pairs, the first element is the target and the second element is the weight
     private final Map<String, Integer> outEdges;
-    
+
     // Abstraction function:
     //   Represents a vertex in a graph, where 'source' is the vertex label, and 'outEdges'
     //   is a map of edges with target vertices and their corresponding weights.
@@ -193,70 +161,53 @@ class Vertex {
     // Safety from rep exposure:
     //   - Fields are private and final where applicable.
     //   - outEdges is exposed only as a copy to prevent external modification.
-    
-    // TODO constructor
+
+    /**
+     * Create a new vertex.
+     * 
+     * @param source the label of the vertex
+     */
     Vertex(String source) {
-        this.source = source;
+        this.source = Objects.requireNonNull(source, "Source cannot be null");
         this.outEdges = new HashMap<>();
         checkRep();
     }
-    
-    // TODO checkRep
+
     private void checkRep() {
-        assert source != null;
-        assert outEdges != null;
-        for (String target : outEdges.keySet()) {
-            assert target != null;
-            assert outEdges.get(target) > 0;
+        assert source != null : "Source cannot be null";
+        for (Map.Entry<String, Integer> entry : outEdges.entrySet()) {
+            assert entry.getKey() != null : "Target cannot be null";
+            assert entry.getValue() > 0 : "Weight must be positive";
         }
     }
-    
-    // TODO methods
-    /**
-     * Get the source vertex.
-     * @return the source vertex
-     */
+
     public String getSource() {
         return source;
     }
 
-    /**
-     * Get a copy of the out edges.
-     * @return a copy of the out edges
-     */
     public Map<String, Integer> getOutEdges() {
-        return new HashMap<>(outEdges);
+        return new HashMap<>(outEdges); // Return a copy to preserve encapsulation
     }
 
-    /**
-     * Add an out edge to the vertex.
-     * @param target the target vertex
-     * @param weight the weight of the edge
-     */
     public void addOutEdge(String target, int weight) {
+        if (weight <= 0) throw new IllegalArgumentException("Weight must be positive");
         outEdges.put(target, weight);
         checkRep();
     }
 
-    /**
-     * Remove an out edge from the vertex.
-     * @param target the target vertex
-     */
     public void removeOutEdge(String target) {
         outEdges.remove(target);
         checkRep();
     }
-    
-    // TODO toString()
+
     @Override
     public String toString() {
         if (outEdges.isEmpty()) {
-            return source + " -> \n";
+            return source + " has no outgoing edges.";
         }
-        StringBuilder sb = new StringBuilder();
-        for (String target : outEdges.keySet()) {
-            sb.append(source).append(" -> ").append(target).append(" : ").append(outEdges.get(target)).append("\n");
-        }
-        return sb.toString();
+        StringBuilder result = new StringBuilder(source + " -> ");
+        outEdges.forEach((target, weight) -> result.append(target).append(" (").append(weight).append("), "));
+        result.setLength(result.length() - 2); // Remove trailing comma and space
+        return result.toString();
     }
 }
